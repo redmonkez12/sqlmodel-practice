@@ -1,4 +1,4 @@
-Write a query which finds a salesmen, who don't have any sales for the RED company
+# Write a query that finds sellers who have no orders with the company RED
 
     SELECT
          s.name

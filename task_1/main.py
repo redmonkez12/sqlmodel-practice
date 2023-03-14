@@ -1,36 +1,28 @@
 import datetime
 
-from sqlmodel import SQLModel, Field, Relationship, Session, select
+from sqlmodel import SQLModel, Field, Session, select, ForeignKeyConstraint
 
+from decimal import Decimal
 from database import create_tables, connect
+import sqlalchemy as sa
 
 
 class SalesPerson(SQLModel, table=True):
     __tablename__ = "sales_persons"
 
     sales_id: int = Field(default=None, primary_key=True)
-    name: str
-    salary: int
-    commission_rate: int
+    name: str = Field(sa_column=sa.Column(sa.Text, nullable=False))
+    salary: Decimal
+    commission_rate: Decimal
     hire_date: datetime.date
-    orders: list["Order"] = Relationship(
-        sa_relationship_kwargs={
-            "cascade": "all"
-        }
-    )
 
 
 class Company(SQLModel, table=True):
     __tablename__ = "companies"
 
     company_id: int = Field(default=None, primary_key=True)
-    name: str
-    city: str
-    orders: list["Order"] = Relationship(
-        sa_relationship_kwargs={
-            "cascade": "all"
-        }
-    )
+    name: str = Field(sa_column=sa.Column(sa.Text, nullable=False))
+    city: str = Field(sa_column=sa.Column(sa.Text, nullable=False))
 
 
 class Order(SQLModel, table=True):
@@ -38,12 +30,14 @@ class Order(SQLModel, table=True):
 
     order_id: int = Field(default=None, primary_key=True)
     order_date: datetime.date = Field(nullable=False)
-    amount: float = Field(nullable=False)
-    company_id: int = Field(foreign_key=Company.company_id, nullable=False)
-    sales_id: int = Field(foreign_key=SalesPerson.sales_id, nullable=False)
+    amount: Decimal
+    company_id: int = Field(nullable=False)
+    sales_id: int = Field(nullable=False)
+    __table_args__ = (
+        ForeignKeyConstraint(["sales_id"], [SalesPerson.sales_id], onupdate="CASCADE", ondelete="CASCADE"),
+        ForeignKeyConstraint(["company_id"], [Company.company_id], onupdate="CASCADE", ondelete="CASCADE"),
+    )
 
-
-engine = connect()
 
 new_sales_people = [
     SalesPerson(name="John", salary=100000, commission_rate=6, hire_date="2006-04-01"),
@@ -68,13 +62,16 @@ new_orders = [
 ]
 
 if __name__ == "__main__":
+    engine = connect()
     create_tables(engine)
 
     with Session(engine) as session:
         session.add_all(new_sales_people)
+        session.flush()
         session.add_all(new_companies)
         session.add_all(new_orders)
         session.commit()
+
 
     statement = (
         select(SalesPerson.name)
